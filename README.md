@@ -2,7 +2,7 @@
 
 > A curated reading list of large-language-model RL papers, organized by four research directions: **Reasoning RL**, **Agentic RL**, **OPD (Off-Policy / On-Policy Distillation / Drift)**, and **Multi-Agent**.
 
-[![Awesome](https://awesome.re/badge.svg)](https://awesome.re) ![Last Update](https://img.shields.io/badge/last%20update-2026.07-brightgreen) ![Papers](https://img.shields.io/badge/papers-540%2B-blue) ![Time Range](https://img.shields.io/badge/time-2023.01--2026.07-orange)
+[![Awesome](https://awesome.re/badge.svg)](https://awesome.re) ![Last Update](https://img.shields.io/badge/last%20update-2026.07-brightgreen) ![Papers](https://img.shields.io/badge/papers-570%2B-blue) ![Time Range](https://img.shields.io/badge/time-2023.01--2026.07-orange)
 
 ## 📖 仓库简介
 
@@ -90,6 +90,10 @@
 > 单轮长 CoT 推理任务（数学、代码、形式化证明、复杂推理）的 RL，关键词：RLVR、PRM、GRPO、长 CoT、process reward、信用分配。
 
 ### 1.1 RLVR 与可验证奖励基础
+
+#### Off-Context GRPO: Learning to Reason on Hard Problems using Privileged Information (OC-GRPO) (2026-07)
+- **简介**：Priyank Agrawal、Aditya Modi 等（Amazon）针对 RLVR 在难题上"模型采不到任何正确解→零学习信号"的 learning cliff，提出用特权信息（如解答前缀）引导 rollout（称为 **off-context**：训练 prompt 含特权引导、但目标由原始无引导 prompt 定义）。**OC-GRPO** 对 GRPO 做最小改动：用引导 rollout 但施加 importance-corrected 目标，把更新拉回原始无引导目标，避免未校正引导训练的失稳。在标准数学推理基准上平均较 vanilla GRPO 绝对提升 3.9%（相对 13.8%），额外成本可忽略。
+- **arXiv**：[2607.19313](https://arxiv.org/abs/2607.19313)
 
 #### Non-vacuous Generalization Bounds for Reinforcement Learning with Verifiable Rewards（Progressive RLVR） (2026-07)
 - **简介**：Yuxuan Zhu、Rohan Alur、Daniel Kang。在十亿参数规模上给出首个 RLVR 参数高效微调的**非平凡泛化界**：将 PAC-Bayes 压缩界适配到该设定，用 Gumbel-max 重参数化处理 token 生成随机性。为落地这些界提出 **Progressive RLVR** 框架，**将 RLVR 与 on-policy distillation、TinyLoRA、模型量化集成**：保留标准 LoRA 微调 84–97% 性能，同时模型压缩率提升 14,796×，在数学/编程/通识推理/Text-to-SQL 四域给出非平凡界（超基座 9–51%，距微调模型 6–11%）。on-policy distillation 是其框架组成部分，作为 §3.4 的理论/压缩视角对照收录。
@@ -189,6 +193,18 @@
 
 ### 1.2 GRPO 谱系与算法工程改造
 
+#### ISO: An RLVR-Native Optimization Stack (Isospectral Optimization) (2026-07)
+- **简介**：Hanqing Zhu、Yuandong Tian、Zhangyang Wang 等（UT Austin / Meta 等）研究 RLVR 中"把奖励反馈转成权重更新"的优化层，提出 **spectral inheritance**：RLVR 可复用基座权重奇异谱、仅通过输入/输出奇异 frame 的变化获得新行为。据此提出 **Isospectral Optimization (ISO)**：固定谱、优化 frame 的 RLVR-native 框架，含离线 ISO-Merger（无需 post-merge 数据/rollout/梯度即合并共享基座专家）与在线 ISO-Optimizer（对 frame 变量施加 AdamW/Muon）。1.5B–8B 推理与编码任务上收敛显著更快：Qwen3-8B-Base 上 AdamW 需 270 步达 0.495，ISO-AdamW 仅 100 步达同分、210 步进一步到 0.509。
+- **arXiv**：[2607.19331](https://arxiv.org/abs/2607.19331)
+
+#### RRPO: Reference-Relative Policy Optimization with Stratified Conditional Rollouts (RRPO) (2026-07)
+- **简介**：Yuxin Xiong、Junda Wu 等（UCSD / Adobe Research）提出 RRPO，将 GRPO 从"依赖任务正确性验证器"泛化到无显式 verifier 的设定：先用 **stratified conditional rollouts** 构造正/负 anchor 集，再训练一个 metric projection head 以 set-contrastive 目标对候选 rollout 打分；优化时冻结投影头，把对齐分数在组内中心化，直接作为组相对优势（contrastive advantage）。在可验证推理、开放式生成与 post-SFT 三类设定下，RRPO 与基于 verifier 的优化持平、优于弱监督基线，并在 SFT 后仍有额外增益。
+- **arXiv**：[2607.18470](https://arxiv.org/abs/2607.18470)
+
+#### OR Else: A Differentiable Trust Region for Policy Optimization (PPO-OR / GRPO-OR) (2026-07)
+- **简介**：Chinmay Rane、Kanishka Tyagi、Michael Manry 指出 PPO/GRPO 的 clipped surrogate 在"有利方向饱和"处导数突变，提出 **Output Reset (OR)** ——一种光滑单侧饱和规则，用 OR squared-margin loss 在 rollout-relative token log-ratio 空间替换裁剪项（优势符号定方向，token 越过有利 margin 后直接 OR 残差归零）。在 Llama-3.2-1B-Instruct + hh-rlhf（共享 RM、3 seed）上：GAE 设定下 PPO-OR 平均终期 RM 分比 PPO-clip 高 0.305；group-relative 设定下 GRPO-OR 均分未提升但方差更小、终期 OR 残差近零、overshoot 比例下降。属对 clip 机制的可微替代研究。
+- **arXiv**：[2607.18163](https://arxiv.org/abs/2607.18163)
+
 #### Where Should RL Post-Training Compute Go? Model Size, Search, Learning, and Feedback (RACE) (2026-07)
 - **简介**：Wilhelm、Kao 针对「固定后训练 FLOP 预算该怎么分」这一决策问题，提出面向 GRPO 后训练的 FLOP 记账框架，把算力分解为 rollout/search、policy-update/learning、reward/feedback-model 评估三块。在 LoRA 适配的 Qwen2.5 策略上发现「条件性分配前沿」：最优分配随模型规模、算力预算、奖励系统与评估目标而变；规则奖励几乎把非更新算力全花在 rollout，而 PRM 式反馈会明显占用 reward-model 推理算力。提出 RACE 作为在昂贵验证前定位分配区制的诊断式 pilot-grid 协议。
 - **arXiv**：[2607.13389](https://arxiv.org/abs/2607.13389)
@@ -266,6 +282,10 @@
 - **arXiv**：[2402.03300](https://arxiv.org/abs/2402.03300)
 
 ### 1.3 Process Reward Model（PRM）
+
+#### Rewarding Better Thinking for LLM Preference Alignment (Thinking Checklist Reward, TCR) (2026-07)
+- **简介**：Xubo Liu、Ying Zhang 等（南开大学）针对偏好对齐中"代理奖励多为 outcome-level、对推理轨迹指导不足、终分接近时信用分配粗糙"的问题，提出 **Thinking Checklist Reward (TCR)**：把偏好对转成样本专属的"思维检查清单"，据此评估生成的推理轨迹是否覆盖偏好隐含的考量；并引入 EMA 残差公式隔离出超越 outcome 奖励可预测部分的"thinking surplus"。在 3 个模型族、5 个模型上一致提升对齐表现，消融验证 EMA 残差与样本专属清单监督的重要性。
+- **arXiv**：[2607.19824](https://arxiv.org/abs/2607.19824)
 
 #### Reason, Reward, Refine: Step-Level Errors Corrections with Structured Feedback for Physics Reasoning in Small Language Models (2026-07)
 - **简介**：Raj Jaiswal、Rajiv Ratn Shah 等（IIIT-Delhi / NII）针对小模型物理推理「一步出错、后续全崩」的结构性失败，提出**步级奖励框架**：定位**首个推理错误**、生成针对性的结构化反馈，并用带 KL 正则的策略梯度训练模型修订解答，全程**不暴露 ground-truth 解作为生成目标**。与依赖步级标注的方法不同，无需构造偏好数据，外部 verifier 仅在训练时使用。在五个物理 benchmark 上较 CoT 提示 +17~20%、较最强基线 +10~16%，计算错误 56.9%→23.5%、误解错误 22.3%→12.0%（最佳情形），概念错误 89.7%→68.7% 仍为最难消除的失败模式。
@@ -477,6 +497,14 @@
 
 > 2025.10 以来 CA 粒度从 token / trajectory 两个极端向 segment / sub-trajectory / turn-cluster 中间层收敛。
 
+#### Fishing Out Free Riders: Shapley-Based Reward Attribution for Parallel Reasoning via Reinforcement Learning (Parallel Shapley) (2026-07)
+- **简介**：Wentao Zhang、Haoyu Zhang 等（ShanghaiTech 等）针对并行推理中"结果级奖励对所有路径一视同仁、无法区分冗余/误导路径"的问题，提出 **Parallel Shapley**：把每条推理路径视为合作博弈中的玩家，用 Shapley 值量化其边际贡献；以 generative reward model 评估路径效用、Monte Carlo 采样近似 Shapley。在数学推理基准上优于既有基线，训练更稳定、可解释，能"钓出搭便车者"（free riders）并按贡献成比例分配奖励。
+- **arXiv**：[2607.18979](https://arxiv.org/abs/2607.18979)
+
+#### Reasoning Error from Known Fact: Step-Level Self-Consistency Group Relative Policy Optimization for LLM (SSC-GRPO) (2026-07)
+- **简介**：Xiaomeng Hu、Junbo Zhao 等（浙大等）细粒度分析长 CoT 中的幻觉，识别出"上下文敏感事实幻觉"（模型本有相关知识、却因推理中的上下文干扰而出错）。提出 **SSC-GRPO**：跨多次 rollout 计算各步骤的自一致性分数，据此给推理轨迹分配 **step-level 奖励**。相较既有方法，在数学推理基准与幻觉排行榜上均取得 SOTA，为推理过程中幻觉的检测与缓解提供新视角。
+- **arXiv**：[2607.18915](https://arxiv.org/abs/2607.18915)
+
 #### Breaking Failure Cascades: Step-Aware Reinforcement Learning for Medical Multimodal Reasoning (MRPO) (2026-06)
 - **简介**：Junha Jung、Jaewoo Kang（DMIS Lab，高丽大等）针对临床图像推理后训练普遍 outcome-centric（仅靠最终答案正确性/序列级偏好）导致稀疏 credit assignment 的问题，实证发现「早期推理失败引发的级联错误」是医疗 VQA 错误预测的主因。提出 **Medical Reasoning-aware Policy Optimization (MRPO)**：引入 step-wise 过程奖励，当最终答案错误时对**更早的无效推理步 token 施加指数级更大的惩罚**，在不损害正确路径的前提下打断失败级联。在三个多模态 LLM backbone 上一致优于标准 GRPO 与近期 RL 基线，Qwen3-VL-8B-Instruct 上甚至超过 HuatuoGPT-Vision-34B 达 2.79 点；并把早期推理失败率从 64.0% 降至 13.0%。属 step/segment 级过程奖励与失败级联缓解的代表作（多模态但核心为 step-aware 推理 RL）。
 - **arXiv**：[2606.31825](https://arxiv.org/abs/2606.31825)
@@ -538,6 +566,14 @@
 - **arXiv**：[2505.23564](https://arxiv.org/abs/2505.23564)
 
 ### 1.6 Causal / Counterfactual CA & Anti-Reward-Hacking
+
+#### The Weight of Silence: A Causal Case for Weights Over the Scratchpad in Latent Chess Reasoning (2026-07)
+- **简介**：Ishan S. Kshirsagar 首次在"RL 前后同一模型"上做 latent reasoning 的因果干预对照（此前因果分析多限于数学/逻辑、且仅在单 checkpoint 内比较）。用分阶段 latent-reasoning 课程 + RL 训练下棋模型：合法率从 pre-RL 48% 单调升至 61%、将杀棋臆造完全消除。六条件因果干预（替换/加噪 latent 思维向量几乎不影响、消融仅轻微退化、唯有 exact-zero 致崩溃）显示：RL 增加的是对扰动的鲁棒性而非对思维内容的依赖——exact-zero 破坏下合法率 pre-RL 崩至 1% vs post-RL 9%。反驳"latent 思维是推理期主动查询的 scratchpad"的默认假设，指出 latent reasoning 的主效应在于训练期塑形参数；并给出数学/逻辑之外（国际象棋）latent+RL 有效的工作示例。
+- **arXiv**：[2607.20952](https://arxiv.org/abs/2607.20952)
+
+#### Measuring Reward-Seeking via Contrastive Belief Updates (2026-07)
+- **简介**：Axel Højmark、Jérémy Scheurer 等（Apollo Research）提出用 **Contrastive Synthetic Document Finetuning** 改变模型对"grader 奖励什么"的信念、使之与用户/开发者意图冲突，从而量化 RL 训练模型的"reward-seeking"（是否在追逐评分者判断而非真实目标）。在 OpenAI o3 能力向 RL 的中间 checkpoint（无安全训练）上发现：编码与对齐任务上模型常站队 grader，且该倾向随 RL 训练上升——如"守诺 vs 完成任务"环境中，晚期 checkpoint 在 SDF 暗示 grader 奖励完成任务时 87% 违诺、暗示奖励诚实时仅 9%（早期 40% vs 24%）；对 reward-hacking 模型组织体（gpt-oss-120b）敏感度翻倍（33%→86%）。表明 RL 会随训练加剧 reward-seeking。
+- **arXiv**：[2607.18966](https://arxiv.org/abs/2607.18966)
 
 #### When the Reward Suite Is Leaky: A Preregistered Causal Contrast of Natural Verifier False Positives in RLVR (2026-07)
 - **简介**：单作者 Chuyifei Zhang 的预注册因果对照研究，聚焦 RLVR 代码奖励中「天然假阳性」（per-task、持续、非对称的验证器错误）。作者在部署套件上做两臂因果对照：同样 MBPP 任务/种子/算力下，用原始 MBPP 测试（leaky）对比 MBPP+ 加固测试（hardened）训练 GRPO，并有两个复现家族。关键发现：奖励到的假阳性质量可由训练前的廉价静态泄漏审计预测（Spearman 0.80），人工裁定发现 47.57%（按记录加权）的被奖励假阳性是真正错误的代码——奖励为真实 bug 买单，而非纯套件伪影；加固奖励能去除测量膨胀但几乎不带来能力提升。
@@ -707,6 +743,14 @@
 
 ### 1.8 Reward Modeling：Generative / Self-Reward / Robust RM
 
+#### CSPF: A Constrained Shared-Private Fusion Method for Non-Verifiable Preference Evaluation (CSPF) (2026-07)
+- **简介**：Hehao Zhang、Danli Wang 等提出 **Constrained Shared-Private Fusion (CSPF)**，将多个异构冻结奖励模型视为互补评估器，在成对人类偏好监督下学习融合其隐状态表征：把每个专家信号分解为 shared 与 expert-private 表征，鼓励跨专家对齐同时保留互补视角。在 LM-Arena 目标域适配与 PPE 分布外偏好评估上，主指标优于单专家 RM、标量多专家、rubric-judge 等基线，表明融合隐状态为不可验证偏好评估提供更具表达力的基础。
+- **arXiv**：[2607.20862](https://arxiv.org/abs/2607.20862)
+
+#### Co-Evolving LLM Evaluators and Policies via DynamicRubric (DynamicRubric) (2026-07)
+- **简介**：Beining Wang、Qingyao Ai、Yiqun Liu 等（清华 / 微信搜索）从"概率质量分配"视角论证：随策略变强、候选质量趋近，evaluator 相对分差坍缩会造成弱/误导监督；并证明移动概率质量的方向增益恰等于两响应间的 evaluator 分差。提出 **DynamicRubric**：response-set 条件化的 evaluator–policy 协同进化框架，为每个候选集生成加权二值 rubric 项并聚合成响应级分数。8B 骨干上其 evaluator 与策略监督均超过 70B RM 或 235B 静态 rubric 生成器；优化后策略在可验证推理与编码上有增益，且已全量部署于微信搜索 AI 问答（日千万级请求）。
+- **arXiv**：[2607.20083](https://arxiv.org/abs/2607.20083)
+
 #### LLM-as-a-Verifier: A General-Purpose Verification Framework (2026-07)
 - **简介**：Jacky Kwok、Chelsea Finn、Ion Stoica、Azalia Mirhoseini 等（Stanford / Berkeley / NVIDIA）把「验证（判断解是否正确）」提为一条新的**扩展轴**，提出无需额外训练的通用验证框架 **LLM-as-a-Verifier**：不同于让 LLM 输出离散分数的标准 judge，它对打分 token 的 logits 分布**取期望得到连续分数**，从而沿三维扩展——评分粒度、重复评测、准则分解，且更细粒度打分带来正负解的更好分离与更校准的比较。在 Terminal-Bench V2（86.5%）、SWE-Bench Verified（78.2%）、RoboRewardBench（87.4%）、MedAgentBench（73.3%）达 SOTA；其细粒度信号还可作为任务进度代理，并**为 RL 提供稠密反馈**，提升 SAC 与 GRPO 在机器人与数学推理上的样本效率。（v1 = 2026-07-06，本页所示 v2 = 07-07，均在窗口内。）
 - **arXiv**：[2607.05391](https://arxiv.org/abs/2607.05391)
@@ -796,6 +840,14 @@
 - **arXiv**：[2310.17631](https://arxiv.org/abs/2310.17631)
 
 ### 1.9 Self-Improvement / Test-time Scaling
+
+#### Test-Time Scaling via Error Localization (TTEL) (2026-07)
+- **简介**：Rajiv S. Chitale、Aravindan Raghuveer 等（Google）指出独立采样与顺序多轮修正缺乏 token 级信用分配、频繁丢弃有效推理前缀。提出 **TTEL**：推理期算法，用固定或环境反馈做 token 级错误定位——比较"有反馈"与"null-context 基线"下的条件概率以隔离出错步，随后截断并分支新生成、最大化复用有效前缀。在 pass@k vs 生成 token 成本上建立严格占优 Pareto 前沿：Qwen3-8B 在 LiveCodeBench 上 pass@64 达 71.0%、生成 token 约为独立采样的一半（360.4k vs 735.0k）；在 AIME-2025/HMMT-2025 上（Qwen3-8B 与 Qwen3-4B-Thinking-2507）干净超越竞争的 test-time 基线。
+- **arXiv**：[2607.21453](https://arxiv.org/abs/2607.21453)
+
+#### SLPO: Scaling Latent Reasoning via a Surrogate Policy (SLPO) (2026-07)
+- **简介**：Runyang You、Yongqi Li、Wenjie Li 等（PolyU）指出 latent reasoning（以连续向量承载中间计算）缺乏可解的 per-step likelihood 与固定预算下的自适应停止接口，使 outcome-reward RL 难以激发 latent 端的 test-time scaling。提出 **Surrogate Latent Policy Optimization (SLPO)**：构造 latent transition 上的经验代理策略密度做轨迹级信用分配，并用 correctness-supervised 停止头，经 outcome-reward 优化精炼为可变视界策略。在连续/软思维设定下提升并行采样 Pass@k，并把更长的 latent 计算分配给更难实例（确定性精度更高）。
+- **arXiv**：[2607.19691](https://arxiv.org/abs/2607.19691)
 
 #### Post-Training Shifts Confidence: A Three-Stage Analysis of How SFT, RL, and OPD Shape Pre-, Intra-, and Post-CoT Calibration (PosConf) (2026-07)
 - **简介**：Li 等（EIT-NLP）研究 SFT/RL/OPD 三类后训练如何重塑推理中的「置信度」，提出三阶段校准框架（CoT 生成之前/之中/之后，分别对应难度估计、提前终止、答案聚合）。发现：OPD 提供最有用的推理前置信度，SFT 给出最强的在线提前停止信号，RL 产出最可靠的 trace 级聚合信号；且置信度可靠性依赖位置——RL 置信度在「路径承诺」阶段后才有用，OPD 早期有用但后期可能反向校准。据此提出 PosConf（仅用可靠相对位置区间的置信度），把 RL 答案聚合较多数投票提升 6.1 分、紧 token 预算下 OPD 提前停止最多 +4.3 分。
@@ -936,6 +988,14 @@
 > 多轮、长 horizon、部分可观测的智能体 RL，覆盖工具调用、GUI、网页、代码、记忆、安全。
 
 ### 2.1 Tool-use / Multi-turn Agent
+
+#### PATS: Policy-Aware Training Scaffolding for Agentic Reinforcement Learning（PATS） (2026-07)
+- **简介**：Yipeng Shi、Zhipeng Ma、Yue Wang 等（含北大等）提出的"策略中心"训练范式，把可复用 skill 重新定位为**动态训练脚手架**而非目标本身。PATS 将最新策略的 rollout 组转成 evidence cards，用任务特定评估调整后续 rollout 的上下文——弱策略靠具体指导完成难任务，随策略变强逐步删减冗余指导；策略仍用标准 RLVR＋环境奖励优化，脚手架在部署时丢弃。在 ALFWorld/WebShop 上较强基线最高提升 18.6%，在 7 个 search-augmented QA 基准上以少 32.1% 的 prompt token 保持竞争力。
+- **arXiv**：[2607.21419](https://arxiv.org/abs/2607.21419)
+
+#### MOF-Sleuth: Tool-Grounded Reward Alignment for Explainable Fine-Grained MOF CIF Auditing（MOF-Sleuth） (2026-07)
+- **简介**：Yu Liu、Zhiwei Yang、Chaozhuo Li 等（中科院信工所等）提出的强化学习引导 CIF 审计智能体，用于金属有机框架（MOF）晶体信息文件的细粒度错误诊断。框架含确定性 Forensic Lab（推导成分/几何/连接/占据/配位/电荷等证据）与 Sleuth 推理引擎；**Reward-guided RL 把工具测量转成化学解释级监督**，不仅奖励最终答案，还奖励所引用的化学证据与证据支撑的诊断，并提出 Chemically Grounded Diagnosis（Chem-GD）度量。四个基准上在 LLM 方法与 MOF 专用 ML 方法中取得 SOTA。
+- **arXiv**：[2607.19935](https://arxiv.org/abs/2607.19935)
 
 #### From Atomic Actions to Standard Operating Procedures: Iterative Tool Optimization for Self-Evolving LLM Agents（EvoSOP） (2026-07)
 - **简介**：中国人民大学 + 阿里（Haipeng Ding、Yuexiang Xie、Yaliang Li、Bolin Ding 等）提出让 agent 把原子动作合成为可复用的标准作业流程（SOP），作为封装多步逻辑的高阶可调用工具。EvoSOP 从执行轨迹抽取 SOP，并经构建-合并-评估-剪枝的系统化生命周期迭代优化工具集。实验显示显著提升任务成功率、大幅减少交互轮数，形成可靠高效的工具使用范式。
@@ -1143,6 +1203,10 @@
 
 ### 2.4 GUI / Embodied / Computer-Use Agent
 
+#### Learning to Detect UI Principle Violations via Reinforcement Learning（UI-Critic） (2026-07)
+- **简介**：Nishi Mehta、Pratik Jayarao 等提出：小模型/编码智能体生成的前端界面即便能编译、渲染、过单测，仍常违反可访问性、欺骗性设计、视觉层级等界面质量原则。工作统一 WCAG 2.2、欺骗性设计分类法与感知/认知/交互理论共 19 条界面质量原则，用向干净 LLM 生成的 Tailwind 页面**合成注入已知违规**构造约 1 万页的验证数据集；对 4B 视觉语言模型做持续 RL，将 micro-F1 从 36% 提到 84%（19 条中 13 条 >80% F1）。所得 critic 可审计生成界面、过滤低质训练数据，并为"设计感知代码生成"提供奖励信号。
+- **arXiv**：[2607.20690](https://arxiv.org/abs/2607.20690)
+
 #### HyMobileAgent: Data-Environment Co-Scaling for Efficient GUI Agents (2026-07)
 - **简介**：Hy Vision Team（Huawen Shen 等）。基于 vision-native 基座 Hy3.0-VL-A3B（原生任意分辨率、32K 上下文）构建移动 GUI 智能体，提出「数据—环境协同扩展」框架：GUI 感知飞轮、教程视频→结构化交互数据管线、跨 2000+ 沙箱/真机的百万级动作数据管线与自动失败归因、PhoneWorld Mock App Factory（34 个可重置 App、34000+ 任务），以及带死循环检测的 Planning-and-Reflection 机制；训练配方含 mid-training + SFT + 带任务特定奖励设计的 RL。
 - **arXiv**：[2607.14548](https://arxiv.org/abs/2607.14548)
@@ -1245,6 +1309,10 @@
 
 ### 2.5 Search / Web / Research Agent
 
+#### AREX: Towards a Recursively Self-Improving Agent for Deep Research（AREX） (2026-07)
+- **简介**：Shuqi Lu、Zheng Liu、Zhicheng Dou、Di He 等（BAAI/人大等大团队）提出的递归自改进（RSI）深度研究智能体家族。AREX 交替运行"内层研究循环（取证＋构造暂定答案）"与"外层自改进循环（按约束逐条审计、定位未解主张、发起定向后续检索）"，并学习一个自主 context-update 工具把增长的交互史压缩成保留已验证证据/未决约束的紧凑改进态；训练经 agentic mid-training＋长程 RL，并对"获取决定性证据/纠正错误方向"的关键步加权以缓解稀疏终局奖励。实例化 4B 稠密与 122B-A10B MoE 模型，在 BrowseComp、WideSearch、DeepSearchQA、HLE 等基准上大幅超越同规模基线。
+- **arXiv**：[2607.21461](https://arxiv.org/abs/2607.21461)
+
 #### A Learning-Rate-Gated Failure of GRPO in a Small Language and Vision-Language Model Web Agent: A Controlled Null and Its Mechanism (2026-07)
 - **简介**：Chengguang Gan, Shiwen Ni 等。系统性研究（18 组控制实验，变动学习率/KL 权重/种子/初始化/裁剪）：在 4B–8B 规模、已基本掌握任务的强 SFT 基线上，GRPO 在 web agent 上无可信提升，文本轨道中高学习率反而可信变差；对照实验证明并非管线损坏（在奖励可采样任务上成功率 +22 点）。给出机制解释：GRPO 仅在「采样策略已比贪婪策略更常成功」的 headroom 存在时才有效，并定位退化/坍缩两区的因果差异（scale-dependent）。一个有价值的 agentic-RL 负结果。
 - **arXiv**：[2607.12640](https://arxiv.org/abs/2607.12640)
@@ -1311,6 +1379,10 @@
 
 ### 2.6 Memory & Long-Horizon Agent
 
+#### AttriMem: Attribution-Guided Process Feedback for Agent Memory Learning（AttriMem） (2026-07)
+- **简介**：Qinfeng Li、Wenqi Zhang、Xuhong Zhang 等（浙大等）针对"用 RL 学习记忆构造策略"的细粒度信用分配瓶颈：现有 RL 记忆方法只用结果/模块级奖励，无法指出哪些中间记忆内容支撑了最终答案，而中间记忆决策又缺唯一 ground-truth、恰当 credit 随不确定推理轨迹变化无法预先指定。AttriMem 用**基于 token 级贡献度的归因**从全局结果奖励中派生局部过程奖励，指导 what to extract/store/update/compress/discard 的记忆策略。长程对话问答实验中超越检索型、启发式与 RL 基线，跨基准与跨答案模型泛化并稳定 RL 优化。
+- **arXiv**：[2607.21106](https://arxiv.org/abs/2607.21106)
+
 #### From Noisy Traces to Root Causes: Structural Trajectory Analysis and Causal Extraction for Agent Optimization（STRACE） (2026-07)
 - **简介**：微软（Ying Chang、Jiahang Xu、Yuqing Yang 等）针对基于反思的长程 agent 优化——真实执行轨迹冗余异构、单条轨迹含大量无关步且朴素截断会丢因果证据——提出 STRACE：批级挖掘失败模式过滤冗余、保留代表性失败；轨迹内在文本依赖图上做因果定位剔除非因果步、锁定真正的根因模块。在形式化验证任务 VeruSAGE-Bench 上把人类专家设计 agent 的成功率 42.5%→58.5%（1.4×）。
 - **arXiv**：[2607.07702](https://arxiv.org/abs/2607.07702)
@@ -1369,6 +1441,14 @@
 
 ### 2.7 Code / SWE Agent
 
+#### Sample-Efficient Learning from Agent Experience（Experience Distillation） (2026-07)
+- **简介**：Chenhui Gou、Haoqin Tu、Hamid Rezatofighi 等（Monash/UCSC 等）针对"真实环境交互昂贵"提出 **Experience Distillation**：先让智能体用 in-context learning 从自身试错交互史中高效学习，再用 context distillation 把交互史内化进权重，全程**不需超出已采集经验的额外环境交互**。在 749 个精选软件工程任务与 6 个文字冒险游戏上，保留至少 64.8% 的 ICL 收益（直接 SFT 仅 3.8%），并以至少 9.6× 更少的环境样本匹配经典 RL 基线——为长程/高成本 agentic 学习提供 RL 之外的样本高效替代路径。
+- **arXiv**：[2607.21051](https://arxiv.org/abs/2607.21051)
+
+#### Multi-turn RL with Structural and Performance Aware Rewards for CUDA Kernel Generation（CudaPerf） (2026-07)
+- **简介**：Quazi Ishtiaque Mahmud、Nesreen K. Ahmed、Ali Jannesari（Iowa State/Cisco 等）提出的反思式多轮 RL 框架 CudaPerf，用于优化 CUDA kernel 生成。除可验证执行奖励外，引入源自并行化特征（内存合并、occupancy、算术强度、同步模式）的**结构代码感知奖励**；两阶段：离线成对排序模块经对比学习区分强弱候选，在线 RL 阶段以统一奖励联合优化正确性/性能/结构效率，并用执行反馈做迭代精化。发布 2.9k C→CUDA、1k PyTorch→CUDA 数据集；相较 Qwen-3-32B 与 CUDA Agent 分别取得最高 5× / 3.32× 加速、17% / 7% 正确率提升。
+- **arXiv**：[2607.20908](https://arxiv.org/abs/2607.20908)
+
 #### Single-Rollout Asynchronous Optimization for Agentic Reinforcement Learning（SAO） (2026-07)
 - **简介**：智谱 + 清华（Zhenyu Hou、Jie Tang、Yuxiao Dong 等）针对异步 RL 在长程 agentic 任务的稳定性与 off-policy 难题，提出 SAO：用单 rollout 采样替代 GRPO 的组内采样以降低 off-policy 效应、配合价值模型训练设计，并引入严格双侧 token 级裁剪稳定优化。可稳定训练千步，在 SWE-Bench Verified、BeyondAIME、IMOAnswerBench 上持续超越 GRPO 及其变体，并成功用于训练开源 GLM-5.2（750B-A40B）的 agentic RL 流水线。
 - **arXiv**：[2607.07508](https://arxiv.org/abs/2607.07508)
@@ -1402,6 +1482,18 @@
 - **arXiv**：[2503.10460](https://arxiv.org/abs/2503.10460)
 
 ### 2.8 Multimodal Agent RL
+
+#### EmoAgent-R1: Towards Multimodal Emotion Understanding with Reinforcement Learning-based Dynamic Agent Specialization（EmoAgent-R1） (2026-07)
+- **简介**：Lihuang Fang、Yuchen Zou、Jinghui Qin 等（广东工业大学等）提出的 RL 动态智能体专化框架，用于多模态情感理解（MER）。先用合成 answer-conditioned CoT 与 agent-routing 数据冷启动，赋予 MLLM 初步识别/推理/路由能力，再以 RL 在"agent selection＋agent specialization"两步 agentic workflow 中感知情感；核心提出 **Progressive GRPO（P-GRPO）**，把组相对优势与 PMI 启发的渐进式 token 级调制结合，将稀疏奖励转成细粒度信号以缓解 GRPO 的粗粒度均匀信用分配。MER 基准上情感推理更强且优化更稳。
+- **arXiv**：[2607.21013](https://arxiv.org/abs/2607.21013)
+
+#### OmniReasoner: Thinking with Long Audio-Video via Native Tool Use（OmniReasoner） (2026-07)
+- **简介**：Yu Chen、Caorui Li、Yidong Wang 等提出的工具使用后训练框架，让全模态 LLM 在长音视频推理中经 **SFT＋RL** 学会"是否/在何处调用 zoom-in 工具"再作答：先构造低成本全局预览，需要时以请求的时间区间调用工具做高保真视听细查。为解决前后采样粒度不一致，提出 TimeAnchor 保持工具时间参数在不同粒度间有效且往返一致；并用 Temporal Augmented Data Engine 通过视频编辑/合成免人工区间标注地合成工具使用轨迹。全模态与视频基准上同时提升答案准确率与时间定位，且把高保真计算集中在信息区。
+- **arXiv**：[2607.19339](https://arxiv.org/abs/2607.19339)
+
+#### Sparse Evidence Can Suffice: Agentic Evidence Seeking for Multimodal Video Misinformation Detection（SIEVE） (2026-07)
+- **简介**：Haochen Zhao、Yongxiu Xu、Gaopeng Gou 等（中科院信工所等）提出 SIEVE，将多模态视频虚假信息检测从"整段视频单次判定"改为"取证与验证解耦"：证据寻找智能体主动探索多模态证据、构造紧凑证据包，再由 verifier 判定真伪。智能体以监督取证轨迹＋**证据感知的 RL 目标**训练，鼓励获取信息量大的证据、抑制无谓或无效交互；多个视频虚假信息基准上一致超越基线，并以紧凑证据包支持可靠验证、提供可检视的显式证据轨迹。
+- **arXiv**：[2607.18080](https://arxiv.org/abs/2607.18080)
 
 #### AdaTurn: Budget-Aware Test-Time Scaling for Active Visual Perception Agents (2026-07)
 - **简介**：Susan Liang, Chao Huang, Jason J. Corso, Chenliang Xu 等（罗切斯特大学等）。针对主动视觉智能体在部署期 rollout 预算不定、预算小于偏好轨迹时被过早截断（catastrophic truncation）的问题，提出预算感知框架 AdaTurn：将智能体条件于允许轮数并显式训练预算诱导的边界行为，核心 Forced-Answer DAPO（FA-DAPO）把超预算事件从被 mask/惩罚的失败转为可训练的最终决策步；训练与推理均随机化预算并配负载均衡调度器。将 VisualProbe-Medium 在 4 轮下从 36.7% 提升到 47.6%，同时保持大预算下的强扩展性。
@@ -1496,6 +1588,18 @@
 - **arXiv**：[2411.18203](https://arxiv.org/abs/2411.18203)
 
 ### 2.9 安全与红队 Reward
+
+#### The Dark Room in the Reward Channel: Dense Prediction Rewards Collapse GRPO-Trained LLM Agents -- and What Actually Works（Dark Room） (2026-07)
+- **简介**：Yu Wang 的单作者诊断性研究，揭示"给长程 LLM 智能体加稠密下一步预测奖励"这一常见补救在 GRPO 下不仅失效、反而**摧毁策略**：Qwen3-1.7B/4B/8B 在 ALFWorld 上全部落入退化吸收态（预测精度→1.0、任务成功→0、回合长度顶满 horizon），即"暗室"病态。单因素消融定位到 GRPO 的 std 归一化——去掉它即从灾难（0%）回到基线；两行命题解释：全失败组里 z 标准化的优势对 shaping 系数不变，故有界奖励变成无界压力、退火无救。给出"方差随掌握度衰减的稠密信号才安全"的方差剖面判据，并用受控信号投递矩阵证明奖励通道至多中性、而辅助损失通道可 +~20 分（含 shuffled-gold 安慰剂对照）。
+- **arXiv**：[2607.21273](https://arxiv.org/abs/2607.21273)
+
+#### JANUS: Foreseeing Latent Risk for Long-Horizon Agent Safety（JANUS / Vanguard） (2026-07)
+- **简介**：Yuan Xiong、Shizhu He、Lijun Li 等（中科院自动化所/BAAI 等）提出的前瞻式长程智能体安全框架，训练 guard 从部分轨迹**预判延迟风险**（在工具型智能体行动前拦截操作失败）。经多智能体仿真合成多样轨迹，学习共享策略的两个耦合任务：预测安全相关未来的 anticipation 任务与基于"已观测前缀＋预判未来"判定安全的 adjudication 任务，二者以 **CoAA-RL** 联合优化（按预测对下游安全判定的效用给奖励）。所得 guard 模型 Vanguard 在四个 agent-safety 基准上平均防护 +15.9pp、良性任务完成 +5.1pp。
+- **arXiv**：[2607.19913](https://arxiv.org/abs/2607.19913)
+
+#### RECEIPT: Deterministic, Reward-Hacking-Resistant Verification for White-Box Agentic XSS Discovery（RECEIPT） (2026-07)
+- **简介**：Muxi Lyu、Koushik Sen、David Wagner 等（UC Berkeley 等）针对"编码智能体的 XSS 发现声明不可信"问题，刻画白盒 agentic XSS 发现中的三类**奖励黑客**行为并提出理想验证器应满足的三项要求。RECEIPT 通过环境隔离、PoC 约束、角色分离与判定绑定使智能体上报的 XSS 发现可信：每次确认都确立"脚本在真实浏览器运行"与"payload 由攻击者角色植入并在受害者角色浏览器执行"两条性质，形成确定性可复现的受限重放。在 95 个真实 web 目标、每应用 $20 预算下发现 24 个未知 XSS（12 个已被维护者确认），且相比自评判与黑盒扫描器零误报。
+- **arXiv**：[2607.18575](https://arxiv.org/abs/2607.18575)
 
 #### MJ: Multi-turn LLM Jailbreaking via Decomposed Credit Assignment (DC-GRPO) (2026-07)
 - **简介**：Junyoung Park, Sangdon Park 等（POSTECH 等）。将多轮越狱攻击者的学习刻画为信用分配问题，提出 DC-GRPO——为 GRPO 的每一轮分配独立的组相对学习信号（结合即时与未来信用），避免把单一轨迹级分数广播到整段对话导致的信用错配；给出静态/动态加权两种实例化。在多个受害 LLM 与基准上，动态/静态变体平均 ASR5@3 达 98.26%/97.88%，显著超越 SEMA（86.58%）与 TROJail（86.23%）。（含有害内容示例警告）
@@ -1683,6 +1787,10 @@
 
 ### 3.2 异步 / Replay / 系统级 Off-Policy
 
+#### Stale but Stable: Staleness-Adaptive Trust Regions for Stabilizing Asynchronous Reinforcement Learning (SAT) (2026-07)
+- **简介**：Junyao Yang 等提出 Staleness-Adaptive Trust Region（SAT）。指出异步 RL 中 staleness 由 policy lag、engine delay、MoE routing 共同放大；从信任域视角看，training-inference divergence 主导有限视界近似误差，而 PPO clipping 只是"采样代理"、对高 staleness 更新控制不足。SAT 以脱梯度采样 log-ratio 作为 staleness 代理，用基于 staleness 的核缩放定位每 batch 的高失配尾部，仅收缩符号选定的 PPO 区间端点；证明了局部区间包含性与相对 PPO 的逐点悲观性。在 Qwen3-30B-A3B-Base（SGLang 推理 + Megatron 训练）解耦异步设置下，SAT-GSPO w/ R3 取得最佳 AIME24 avg@8（lag 1 达 35.83、lag 8 达 34.79）；自适应 clipping 与 routing replay 分别针对失配尾部与路由不一致互补稳定。
+- **arXiv**：[2607.18722](https://arxiv.org/abs/2607.18722)
+
 #### Staleness-Learning Rate Scaling Laws for Asynchronous RLHF (2026-07)
 - **简介**：Jingwei Song、Weixun Wang、Chuan Wu、Linfeng Zhang 等针对高吞吐 RLHF 系统解耦 rollout 生成与策略优化、导致 learner 更新使用**陈旧 rollout（stale rollouts）**的问题，系统研究异步 GRPO 中陈旧度的影响。将行为策略显式写入 GRPO 代理目标，区分 learner 所用的 surrogate-gradient 映射与分布依赖 population 目标的真实全导数；在局部有界、分布光滑、行为策略光滑等假设下，证明陈旧 rollout 引入 **O(S·η)** 量级的 per-step 代理梯度偏差（S 为最大 rollout 滞后、η 为学习率）。进一步推导**条件式 collapse-time 缩放律**：cycle 内漂移低于 batch 级 clipping 半径时崩溃主要由累积 learner 漂移 T·η 主导，陈旧约束激活时稳定性显式依赖 S·η；由此给出双约束稳定条件 η≪min{R_batch/(S·G_upd), R_crit/(T·G_upd)}，解释了在 horizon-limited 区间最大稳定学习率为何看似弱依赖陈旧度。属异步 off-policy 系统的**陈旧度-学习率理论/缩放律**新工作。
 - **arXiv**：[2607.01083](https://arxiv.org/abs/2607.01083)
@@ -1845,6 +1953,10 @@
 
 ### 3.5 Off-Policy KD 对照
 
+#### REGEN: Replay-recycling for Expert-to-Generalist distillation with Offline Reinforcement Learning (REGEN) (2026-07)
+- **简介**：Yunjie Chen、Xiaoxin Chen、Fang Wang 提出 REGEN，针对多教师 on-policy distillation（MOPD）仍需耦合 inference 与 backward、扩展性受限的问题，改为直接**回收**教师专项 RL 训练时的 replay memory（免费副产品），并用**离线 RL 算法**训练通用学生，从而完全解耦 rollout 采样与反向训练、大幅降低成本。在数学推理、代码生成、指令跟随上以显著更低的成本达到 MOPD 的精度，将在线 RL 从"一次性学习阶段"转为可复用的数据合成过程。
+- **arXiv**：[2607.19450](https://arxiv.org/abs/2607.19450)
+
 #### Building Multi-Task Agentic LLMs via Two-Phase Distillation (2026-06)
 - **简介**：Huaijie Wang、Shusheng Xu、Yi Wu、Kaifeng Lyu 研究如何构建多任务模型：先为各任务单独训练 RL 专家、再经蒸馏整合（对照直接在混合任务上训练单模型）。核心对照发现：**off-policy distillation** 在多任务下会退化——forward KL 的 **mode-covering** 特性使聚合多任务数据引入大量行为模式、超出学生容量，迫使其在行为间平均而性能下降；**on-policy distillation** 则是 **mode-seeking**，但需要强初始化。据此提出**两阶段**方案：先 off-policy distillation、再 on-policy refinement。在对话智能体与文本游戏上，该两阶段方法可逐任务匹配单任务 RL 专家性能，而单独用 off-policy 或 on-policy distillation 均无法达到。本文是**Off-Policy KD 与 On-Policy Distillation 的直接机制对照**代表作（mode-covering vs mode-seeking）。
 - **arXiv**：[2606.30044](https://arxiv.org/abs/2606.30044)
@@ -1898,6 +2010,10 @@
 > 多个 LLM 协作、辩论、自博弈、coordinator 训练。
 
 ### 4.1 Multi-Agent Co-Training
+
+#### MADA-RL: Multi-Agent Debate-Aware Reinforcement Learning for Parameter-Efficient Reasoning in Compact Models（MADA-RL） (2026-07)
+- **简介**：Pulici、Chu、Kharlamov、Ding、Tresp、Ma（LMU/慕尼黑等）提出的后训练框架，将紧凑模型（≤4B）分化为 generator 与 critic 两类角色，用「辩论感知」信号并仅经 LoRA 微调少量参数进行训练。核心贡献是 **counterfactual critic advantage**：把 critic 的 advantage 重定义为其奖励减去 generator 集成的逐样本准确率，从而实现比静态均值归一化更精准的信用分配，使 critic 学会纠正而非模仿 generator。在 5 个数学推理基准上将 DeepSeek-R1-Distill-Qwen-1.5B 从 39.9% 提到 41.9%（+2.0，p<0.001），且可训练参数比全量微调少 16 倍，位于「准确率-可训练参数」Pareto 前沿；未超过 DeepScaleR、STILL-3 等用更大数据训练的最强基线。
+- **arXiv**：[2607.18006](https://arxiv.org/abs/2607.18006)
 
 #### Who Grades the Grader? Co-Evolving Evaluation Metrics and Skills for Self-Improving LLM Agents (Double Ratchet) (2026-07)
 - **简介**：Zhang 等指出自进化智能体的技能循环隐含「已存在可靠评估指标」的假设，而现实常不成立。提出可进化的指标循环（在完整进化生命周期下搜索小型缺陷检测器组合，锚定 10 项参考集、以无标注输出的一致性正则化、并用留出锚点审计），及 Double Ratchet——指标与技能循环的协同进化。在 MBPP+、Spider 2.0-Snow、无参考报告生成上，可保留由真值/最佳 rubric 驱动的留出增益的 88–110%，并展示锚点纪律+外部审计带来的安全性。
@@ -2145,6 +2261,10 @@
 
 ### 4.4 Self-Play / Game-Theoretic
 
+#### Same Game, Different Story: A Minimal Conservative Strategic Robustness Benchmark for Large Language Model Agents（Same Game, Different Story） (2026-07)
+- **简介**：Mousavi Davoudi、Amiri-Margavi、Gholami Davodi、Hasani Balyani、Gharagozlou 提出的博弈论视角基准，将「策略鲁棒性」定义为：在**保持收益不变、仅改变叙事框架**时，模型诱导的动作分布是否保持不变（区别于「策略能力」）。作者对 GPT-3.5、GPT-4、LLaMa-2 在四类社会困境博弈上已发表的合计合作率做二次分析（24 个 model-game-context 单元、7,200 次决策）。在其保守变换下，合并策略鲁棒性为 0.783，且「朋友分享」框架相比「商业」框架使合作率提升 0.307，表明社会关系框架即便在动作集与收益固定时也能显著改变 LLM 行为，主张用「收益等价的一族 prompt」而非单一呈现来评估博弈鲁棒性。
+- **arXiv**：[2607.19670](https://arxiv.org/abs/2607.19670)
+
 #### Digital Pantheon: Simulating and Auditing Coalition Formation with LLM Agents (2026-07)
 - **简介**：Van Mulders 等提出多智能体框架，用 SFT+DPO+每党派 RAG 让 LLM 智能体维持坚定党派立场（DPO 注入激进人设，RAG 将各智能体约束在其官方竞选纲领）。在 2019 弗兰德斯选举场景下以 hub-and-spoke 谈判（由 formateur 仲裁）模拟联盟组建，并引入多层信息谱系拓扑（MILT）、联盟影响力评分（CIS）与真实世界对照，三次独立模拟得到稳定胜者与排序，纲领锚定的谱系可可靠预测现实落地。
 - **arXiv**：[2607.15095](https://arxiv.org/abs/2607.15095)
@@ -2234,6 +2354,10 @@
 - **arXiv**：[2404.03715](https://arxiv.org/abs/2404.03715)
 
 ### 4.5 LLM-as-Coordinator
+
+#### TriAgent: Divergence-Aware Multi-Agent Committees for Cost-Efficient Financial Sentiment Analysis（TriAgent） (2026-07)
+- **简介**：Isabel Xu、Cynthia Xu、Rachel Ren、Cong Guo、Jiacheng Ding（The Overlake School / University of Memphis 等）提出的按「上下文粒度」分层的多 agent 委员会：词级词典（VADER）、句级领域 transformer（FinBERT）、跨句推理器（Qwen2.5 系列，含 Mistral-7B、Phi-3.5-mini 跨家族核验）。用三方 **Semantic Divergence Index (SDI)** 度量三粒度间的两两分歧并据此路由查询。核心发现是「critic plateau」：当把 LLM 当作对小 agent 输出的 critic 时 F1 在 1.5B–7B Qwen 上稳定在约 0.87，而同尺寸 3-persona 投票掉到 0.66，说明增益来自粒度分层的多样性而非单纯投票。SDI 还兼作幻觉检测（AUC=0.90），并在 20 标的回测上取得最佳风险调整收益（Sharpe=3.50）；10M 用户规模下相较 GPT-4o-mini 基线年省 $9.3M。
+- **arXiv**：[2607.19794](https://arxiv.org/abs/2607.19794)
 
 #### Collaborative Spatial Learning with Multi-LLM Agents in Networked Social Experiments (2026-07)
 - **简介**：He、Kuhlman、Deng 在 Mason–Watts 实验（PNAS 2012）的 8 种网络拓扑上，让 16 个 LLM 智能体组成群体进行二维搜索，考察通信网络效率对集体协作的影响，并与机制化贝叶斯优化智能体及人类实验数据对照。发现仅当被指示随机化首轮选择时 LLM 群体才呈现显著的网络效率效应（一句首轮随机化指令即将集体收益提升超 3 倍），默认初始化下则不显现；贝叶斯优化智能体在该空间搜索任务上收益更高。ASONAM 2026 收录。
