@@ -2323,6 +2323,10 @@
 - **简介**：Baohao Liao、Hanze Dong、Li Dong、Furu Wei 等。研究 agentic 任务的 on-policy distillation：全在线 OPD 因每步都需学生重新 rollout + 教师查询而昂贵。提出 Replayed-Prefix On-Policy Distillation (ReOPD)——用预采集的教师轨迹作为"回放前缀"，学生只在选定步动作、教师提供密集 per-step 监督而无需真实环境交互。作者指出多轮 OPD 存在 "prefix trap"：让历史更贴近学生 on-policy 会提升相关性，却可能在教师目标不可靠的历史上查询教师，形成学生占据与教师可靠性之间的双向分布漂移；ReOPD 用 step-decaying 采样调度（偏重早期、低漂移前缀）来缓解。在数学推理（Python）与搜索环境、多种师生规模上保持或提升 OPD 精度，学生训练零工具调用，每步至少快 4×。
 - **arXiv**：[2607.04763](https://arxiv.org/abs/2607.04763)
 
+#### d-OPSD: Learning from the Self-future: On-policy Self-distillation for dLLMs (2026-06)
+- **简介**：Yifu Luo、Zeyu Chen、Haoyu Wang、Xinhao Hu、Yuxuan Zhang、Zhizhou Sha、Shiwei Liu 提出首个面向 diffusion LLM 的 OPSD 框架。d-OPSD 用自生成答案进行 suffix conditioning 构造 self-teacher，并把监督从 token 级改为与迭代去噪过程一致的 step 级。
+- **arXiv**：[2606.18195](https://arxiv.org/abs/2606.18195) · **代码**：[xingzhejun/d-opsd-code](https://github.com/xingzhejun/d-opsd-code)
+
 #### AsyncOPD: How Stale Can On-Policy Distillation Be? (AsyncOPD) (2026-06)
 - **简介**：Wonjun Kang、Kevin Galim、Seunghyuk Oh、Minjun Kang、Sanghyun Park 等（FuriosaAI + UW-Madison）。首个系统研究**异步 On-Policy Distillation 中的 staleness** 的工作，把异步 RL 的 off-policy 问题搬到 OPD 场景：rollout 主导 reasoning 训练时长，异步管道解耦 rollout 与 learner 可缓解瓶颈但引入 stale-policy 数据；且在 teacher 反馈通过 local KL loss 实现、full-vocab teacher logits 太贵需有限 teacher-score cache 的现实设定下。三大发现：① **KL 方向决定 staleness 鲁棒性**——teacher-weighted forward KL 对 stale rollout 更鲁棒，student-weighted reverse KL 脆弱；② 对脆弱的 reverse-KL，异步 RL 的稳定化技巧（如 PPO 式 clipping）反而不如一个更简单的 OPD 专用 surrogate——在 learner 时用当前 student 重算 reverse-KL 信号（recompute Aθ、不 clip）；③ 有限 teacher-score cache 造成 bias-variance 权衡，引出 multi-sample Monte Carlo 估计器（保留 MC 可纠偏性、降低单样本方差）。最终开源 **AsyncOPD** 全异步训练管道，吞吐相对严格同步训练提升 1.6×–3.8× 且精度相当。横跨 §3.2（异步系统级 Off-Policy）与 §3.4（On-Policy Distillation），是把"异步/staleness 治理"正式引入 OPD 的标志性新作。
 - **arXiv**：[2606.24143](https://arxiv.org/abs/2606.24143)
